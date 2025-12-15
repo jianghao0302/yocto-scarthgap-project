@@ -1,0 +1,74 @@
+{
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/sources/poky/bitbake/lib",
+        "${workspaceFolder}/sources/poky/meta/lib"
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/sources/poky/bitbake/lib",
+        "${workspaceFolder}/sources/poky/meta/lib"
+    ],
+    "files.associations": {
+        "*.conf": "bitbake",
+        "*.inc": "bitbake"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.cache": true,
+        "**/build": true,
+        "**/build/**": true,
+        "build_**":true,
+        "**/tmp": true,
+        "**/tmp/**": true,
+        "**/sstate-cache": true,
+        "**/sstate-cache/**": true,
+        "**/downloads": true,
+        "**/downloads/**": true,
+        "**/cache": true,
+        "**/cache/**": true,
+        "**/tmp-glibc": true,
+        "**/tmp-glibc/**": true,
+        "**/work": true,
+        "**/work/**": true,
+        "**/deploy": true,
+        "**/deploy/**": true,
+        "**/sysroots": true,
+        "**/sysroots/**": true,
+        "**/sdk": true,
+        "**/sdk/**": true,
+        "**/.yocto": true,
+        "**/.bitbake.lock": true
+    },
+
+    "search.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.cache": true,
+        "**/build": true,
+        "**/build/**": true,
+        "build_**":true,
+        "yocto-docs":true,
+        "**/tmp": true,
+        "**/tmp/**": true,
+        "**/sstate-cache": true,
+        "**/sstate-cache/**": true,
+        "**/downloads": true,
+        "**/downloads/**": true,
+        "**/cache": true,
+        "**/cache/**": true,
+        "**/tmp-glibc": true,
+        "**/tmp-glibc/**": true,
+        "**/work": true,
+        "**/work/**": true,
+        "**/deploy": true,
+        "**/deploy/**": true,
+        "**/sysroots": true,
+        "**/sysroots/**": true,
+        "**/sdk": true,
+        "**/sdk/**": true,
+        "**/.yocto": true,
+        "**/.bitbake.lock": true
+    }
+}
