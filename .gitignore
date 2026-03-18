@@ -1,0 +1,45 @@
+# Yocto build directories created by bsp-setup.sh or manual oe-init-build-env runs
+**/build/
+**/build-*/
+
+# Download and shared-state caches
+**/downloads/
+**/downloads-*/
+**/sstate-cache/
+**/sstate-cache-*/
+
+# Common build output directories inside Yocto build trees
+**/tmp/
+**/tmp-*/
+**/cache/
+**/stamps/
+**/deploy/
+**/buildhistory/
+
+# BitBake runtime artifacts
+**/bitbake-cookerdaemon.log
+**/bitbake.lock
+**/pn-buildlist
+**/task-depends.dot
+**/package-depends.dot
+
+# Generated environment helper from local builds
+**/SOURCE_THIS
+
+
+# Python bytecode and virtual environments
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/venv/
+**/env/
+
+# Common local editor and OS artifacts
+*.swp
+*.swo
+*~
+.DS_Store
