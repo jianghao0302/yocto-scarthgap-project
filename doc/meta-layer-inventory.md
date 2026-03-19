@@ -185,18 +185,16 @@ Download URL: `git://git.openembedded.org/meta-openembedded`
 - `sources/nxp/meta-openembedded/meta-webserver`
 - `sources/nxp/meta-openembedded/meta-xfce`
 
-### `sources/nxp/meta-selinux`
+### `sources/meta-selinux`
 
 Version: `scarthgap @ 8024696`
 
 Download URL: `git://git.yoctoproject.org/meta-selinux`
 
-- `sources/nxp/meta-selinux`
+### `sources/nxp/meta-imx`
 
-### `sources/nxp/meta-virtualization`
+Version: `scarthgap-6.6.52-2.2.2`
 
-Version: `scarthgap @ 3dd635f6`
+Download URL: `https://github.com/nxp-imx/meta-imx/tree/scarthgap-6.6.52-2.2.2`
 
-Download URL: `git://git.yoctoproject.org/meta-virtualization`
-
-- `sources/nxp/meta-virtualization`
+- `sources/nxp/meta-imx`
