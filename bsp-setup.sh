@@ -26,16 +26,10 @@ PROG_NAME="bsp-setup.sh"
 
 # This defines which machine conf files we ignore for the underlying SDK
 MACHINE_EXCLUSION="^twr"
-# Which machine types are ARM based and need the linaro toolchain?
-# This should be done properly by checking the conf files, really
-ARM_MACHINE="^ls|^s32|^lx|^imx"
 
 
-DEFAULT_DISTRO="fsl-auto"
+DEFAULT_DISTRO="poky"
 COMPANY="ALPHA"
-
-# Any bluebox or LS machine type
-BB_LS_MACHINE=".+bbmini|.+bluebox.+|ls.+|lx.+"
 
 # Any Ubuntu machine type
 UBUNTU_MACHINE=".+ubuntu"
@@ -46,37 +40,10 @@ YOCTO_VERSION="scarthgap"
 # Error codes
 EINVAL=128
 
-# alb-user-extra-layers.sh should be a shell script
-# that defines (only) the alb_user_extra_layers variable
-# which should contain a list of desired layers to be added
-# to the Yocto configuration. Example of script content:
-#
-# #!/bin/sh
-#
-# alb_user_extra_layers="\
-#     meta-userlayer1 \
-#     meta-userlayer2 \
-# "
-#
-ALB_USER_EXTRA_LAYERS_SCRIPT="./alb-user-extra-layers.sh"
-if [ -a "$ALB_USER_EXTRA_LAYERS_SCRIPT" ]; then
-    file_check="$(file --mime-type "$ALB_USER_EXTRA_LAYERS_SCRIPT" | grep "text/x-shellscript")"
-    if [ -n "$file_check" ]; then
-        . "$ALB_USER_EXTRA_LAYERS_SCRIPT"
-    else
-        echo "ERROR: $ALB_USER_EXTRA_LAYERS_SCRIPT is not a shell script!"
-        echo "Please correct this problem or remove $ALB_USER_EXTRA_LAYERS_SCRIPT and rerun $PROG_NAME"
-        unset ALB_USER_EXTRA_LAYERS_SCRIPT PROG_NAME file_check
-        exit
-    fi
-else
-    alb_user_extra_layers=""
-fi
-
 if [ -z "$ZSH_NAME" ] && echo "$0" | grep -q "$PROG_NAME"; then
     echo "ERROR: This script needs to be sourced."
-    SCRIPT_PATH=`readlink -f $0`
-    if [ "`readlink $SHELL`" = "dash" ];then
+    SCRIPT_PATH=$(readlink -f "$0")
+    if is_dash_shell; then
         echo "Try run command \"set -- -h; . $SCRIPT_PATH\" to get help."
     else
         echo "Try run command \". $SCRIPT_PATH -h\" to get help."
@@ -85,11 +52,11 @@ if [ -z "$ZSH_NAME" ] && echo "$0" | grep -q "$PROG_NAME"; then
     exit
 else
     if [ -n "$BASH_SOURCE" ]; then
-        ROOT_DIR="`readlink -f $BASH_SOURCE | xargs dirname`"
+        ROOT_DIR=$(dirname "$(readlink -f "$BASH_SOURCE")")
     elif [ -n "$ZSH_NAME" ]; then
-        ROOT_DIR="`readlink -f $0 | xargs dirname`"
+        ROOT_DIR=$(dirname "$(readlink -f "$0")")
     else
-        ROOT_DIR="`readlink -f $PWD | xargs dirname`"
+        ROOT_DIR=$(dirname "$(readlink -f "$PWD")")
     fi
     if ! [ -e "$ROOT_DIR/$PROG_NAME" ];then
         echo "Go to where $PROG_NAME locates, then run: . $PROG_NAME <args>"
@@ -99,28 +66,28 @@ else
 fi
 
 SOURCES_DIR="sources"
-ALB_ROOT_DIR=${ROOT_DIR}/${SOURCES_DIR}/meta-alb
+BSP_LIB_DIR=${ROOT_DIR}/bsp
+BSP_COMMON_UTILS_SH=${BSP_LIB_DIR}/common-utils.sh
+BSP_COMMON_RUNTIME_SH=${BSP_LIB_DIR}/common-runtime.sh
+BSP_VENDOR_DIR=${BSP_LIB_DIR}/vendors
 
-# Validate by size that this file is (the same as) the original one in meta-alb
-ORIGINAL_FILE=""
-if [ -d "$ALB_ROOT_DIR" ]; then
-    ORIGINAL_FILE="`find \"$ALB_ROOT_DIR\" -name $PROG_NAME`"
+if ! [ -e "$BSP_COMMON_UTILS_SH" ]; then
+    echo "ERROR: missing common BSP helper file: $BSP_COMMON_UTILS_SH"
+    unset ROOT_DIR PROG_NAME SOURCES_DIR BSP_LIB_DIR BSP_COMMON_UTILS_SH BSP_COMMON_RUNTIME_SH BSP_VENDOR_DIR
+    return
 fi
-if [ -e "$ORIGINAL_FILE" ]; then
 
-    PROGSIZE=`ls -l "$ROOT_DIR/$PROG_NAME" | cut -d' ' -f 5`
-    ORIGINALSIZE=`ls -l "$ORIGINAL_FILE" | cut -d' ' -f 5`
-
-    if [ "$PROGSIZE" -ne "$ORIGINALSIZE" ]; then
-        echo "Found original script: \"$ORIGINAL_FILE\""
-        echo "WARNING: original script \"$ORIGINAL_FILE\" is different from the script you are running"
-        echo "Please update this script (\"$ROOT_DIR/$PROG_NAME\") or source directly \"$ORIGINAL_FILE\""
-        return
-    fi
+if ! [ -e "$BSP_COMMON_RUNTIME_SH" ]; then
+    echo "ERROR: missing common BSP helper file: $BSP_COMMON_RUNTIME_SH"
+    unset ROOT_DIR PROG_NAME SOURCES_DIR BSP_LIB_DIR BSP_COMMON_UTILS_SH BSP_COMMON_RUNTIME_SH BSP_VENDOR_DIR
+    return
 fi
+
+. "$BSP_COMMON_UTILS_SH"
+. "$BSP_COMMON_RUNTIME_SH"
 
 # Check if current user is root
-if [ "$(whoami)" = "root" ]; then
+if [ "$(id -u)" -eq 0 ]; then
     echo "ERROR: Do not use the BSP as root. Exiting..."
     unset ROOT_DIR PROG_NAME
     return
@@ -130,122 +97,32 @@ OE_ROOT_DIR=${ROOT_DIR}/${SOURCES_DIR}/poky
 if [ -e ${ROOT_DIR}/${SOURCES_DIR}/oe-core ]; then
     OE_ROOT_DIR=${ROOT_DIR}/${SOURCES_DIR}/oe-core
 fi
-FSL_ROOT_DIR=${ROOT_DIR}/${SOURCES_DIR}/meta-freescale
 PROJECT_DIR=${ROOT_DIR}/build_${MACHINE}
-
-prompt_message () {
-local i=''
-echo "Welcome to ${COMPANY} Auto Linux BSP (Reference Distro)
-
-The Yocto Project has extensive documentation about OE including a
-reference manual which can be found at:
-    http://yoctoproject.org/documentation
-
-For more information about OpenEmbedded see their website:
-    http://www.openembedded.org/
-
-You can now run 'bitbake <target>'
-"
-    echo "Targets specific to ${COMPANY}:"
-    for layer in $(echo $OE_LAYER_LIST | xargs); do
-        fsl_recipes=$(find ${ROOT_DIR}/${SOURCES_DIR}/$layer -path "*recipes-*/images/fsl*.bb" -or -path "images/fsl*.bb" 2> /dev/null)
-        if [ -n "$fsl_recipes" ]
-        then
-            for i in $(echo $fsl_recipes | xargs);do
-                i=$(basename $i);
-                i=$(echo $i | sed -e 's,^\(.*\)\.bb,\1,' 2> /dev/null)
-                echo "    $i";
-            done
-        fi
-    done
-
-    echo "To return to this build environment later please run:"
-    echo "    . $PROJECT_DIR/SOURCE_THIS"
-}
 
 clean_up()
 {
-   unset PROG_NAME ROOT_DIR OE_ROOT_DIR FSL_ROOT_DIR PROJECT_DIR \
-         EULA EULA_FILE OE_LAYER_LIST MACHINE FSLDISTRO \
+     unset PROG_NAME ROOT_DIR OE_ROOT_DIR PROJECT_DIR \
+    META_OE_LAYER_LIST BASE_LAYER_LIST COMMON_FEATURE_LAYER_LIST \
+             PROFILE_DEFAULT_DISTRO PROFILE_COMMON_FEATURE_LAYER_LIST \
+                 ALPHA_BSP_LAYER_LIST ALPHA_PRODUCT_LAYER_LIST ALPHA_LAYER_LIST \
+                 VENDOR_PROFILE_LIST VENDOR_PROFILE_LAYER_LIST SELECTED_VENDOR_PROFILE \
+         ACTIVE_LAYER_LIST MACHINE \
          OLD_OPTIND CPUS JOBS THREADS DOWNLOADS CACHES DISTRO \
          setup_flag setup_h setup_j setup_t setup_l setup_builddir \
          setup_download setup_sstate setup_error layer append_layer \
-         extra_layers alb_user_extra_layers distro_override \
-         DEFAULT_DISTRO COMPANY BB_LS_MACHINE UBUNTU_MACHINE YOCTO_VERSION EINVAL \
-         ALB_USER_EXTRA_LAYERS_SCRIPT SOURCES_DIR ALB_ROOT_DIR ORIGINAL_FILE \
-         PROGSIZE ORIGINALSIZE OPTIND META_ALB_LAYER_LIST ALB_LAYER_LIST \
-         LS_LAYERS USAGE_LIST PARAM_LAYER_LIST PARAM_MACHINE_LIST \
-         MACHINE_LAYER MACHINE_EXCLUSION ARM_MACHINE
+     extra_layers distro_override \
+                 DEFAULT_DISTRO COMPANY UBUNTU_MACHINE YOCTO_VERSION EINVAL \
+     SOURCES_DIR OPTIND \
+                 USAGE_LIST layer_group vendor_profile supported_machines layer_machines \
+                 vendor_machine_regex vendor_base_layers vendor_feature_layers vendor_profile_file \
+                 BSP_LIB_DIR BSP_COMMON_UTILS_SH BSP_COMMON_RUNTIME_SH BSP_VENDOR_DIR \
+                 VENDOR_MACHINE_REGEX_nxp VENDOR_DEFAULT_DISTRO_nxp VENDOR_COMMON_FEATURE_LAYERS_nxp \
+                 VENDOR_BASE_LAYERS_nxp VENDOR_FEATURE_LAYERS_nxp \
+                 VENDOR_MACHINE_REGEX_renesas VENDOR_DEFAULT_DISTRO_renesas VENDOR_COMMON_FEATURE_LAYERS_renesas \
+                 VENDOR_BASE_LAYERS_renesas VENDOR_FEATURE_LAYERS_renesas \
+                 MACHINE_LAYER MACHINE_EXCLUSION
 
-   unset -f usage prompt_message
-}
-
-usage() {
-    echo "Usage: . $PROG_NAME -m <machine>"
-    ls $FSL_ROOT_DIR/conf/machine/*.conf > /dev/null 2>&1
-
-    if [ $? -eq 0 ]; then
-        echo -n -e "\n    Supported machines: "
-        for layer in $(eval echo $USAGE_LIST); do
-            if [ -d ${ROOT_DIR}/${SOURCES_DIR}/${layer}/conf/machine ]; then
-                echo -n -e "`ls ${ROOT_DIR}/${SOURCES_DIR}/${layer}/conf/machine | grep "\.conf" \
-                   | egrep -v "^${MACHINE_EXCLUSION}" | sed s/\.conf//g | xargs echo` "
-            fi
-        done
-        echo ""
-    else
-        echo "    ERROR: no available machine conf file is found. "
-    fi
-
-    echo "    Optional parameters:
-    * [-m machine]: the target machine to be built.
-    * [-b path]:    non-default path of project build folder.
-    * [-e layers]:  extra layer names
-    * [-D distro]:  override the default distro selection ($DEFAULT_DISTRO)
-    * [-j jobs]:    number of jobs for make to spawn during the compilation stage.
-    * [-t tasks]:   number of BitBake tasks that can be issued in parallel.
-    * [-d path]:    non-default path of DL_DIR (downloaded source)
-    * [-c path]:    non-default path of SSTATE_DIR (shared state Cache)
-    * [-l]:         lite mode. To help conserve disk space, deletes the building
-                    directory once the package is built.
-    * [-h]:         help
-"
-    if [ "`readlink $SHELL`" = "dash" ];then
-        echo "
-    You are using dash which does not pass args when being sourced.
-    To workaround this limitation, use \"set -- args\" prior to
-    sourcing this script. For exmaple:
-        \$ set -- -m s32g274ardb2 -j 3 -t 2
-        \$ . $ROOT_DIR/$PROG_NAME
-"
-    fi
-}
-
-
-add_layers_for_machines()
-{
-    # add the layer specified in PARAM_LAYER_LIST only for the machines
-    # contained in PARAM_MACHINE_LIST
-
-    PARAM_LAYER_LIST=$1
-    PARAM_MACHINE_LIST=$2
-
-    echo ${MACHINE} | egrep -q "${PARAM_MACHINE_LIST}"
-    if [ $? -eq 0 ]; then
-        for layer in $(eval echo ${PARAM_LAYER_LIST}); do
-            if [ -e "${ROOT_DIR}/${SOURCES_DIR}/${layer}" ]; then
-                OE_LAYER_LIST="$OE_LAYER_LIST \
-                    $layer \
-                "
-            fi
-        done
-    fi
-}
-
-is_not_ubuntu_machine()
-{
-    echo ${MACHINE} | egrep -q "${UBUNTU_MACHINE}"
-    return $?
+             unset -f usage prompt_message is_dash_shell append_layers select_vendor_profile append_vendor_profile_layers resolve_vendor_profile_defaults collect_supported_machines
 }
 
 # parse the parameters
@@ -279,7 +156,7 @@ do
 done
 OPTIND=$OLD_OPTIND
 
-OE_LAYER_LIST=" \
+META_OE_LAYER_LIST=" \
     meta-openembedded/meta-oe \
     meta-openembedded/meta-multimedia \
     meta-openembedded/meta-python \
@@ -290,35 +167,64 @@ OE_LAYER_LIST=" \
     meta-openembedded/meta-webserver \
     meta-openembedded/meta-perl \
     meta-openembedded/meta-xfce \
+"
+
+BASE_LAYER_LIST=" \
+    $META_OE_LAYER_LIST \
+    meta-arm/meta-arm \
+    meta-arm/meta-arm-toolchain \
+"
+
+COMMON_FEATURE_LAYER_LIST=" \
     meta-virtualization \
     meta-security \
-    \
-    meta-freescale \
-    meta-rust-bin \
-    meta-avnet \
+    meta-qt6 \
 "
 
-LS_LAYERS=" \
-    meta-qoriq \
-    meta-alb/meta-alb-qoriq \
+ALPHA_BSP_LAYER_LIST=" \
+    meta-alpha/meta-alpha-bsp \
 "
 
-USAGE_LIST="$OE_LAYER_LIST \
-	$LS_LAYERS \
+ALPHA_PRODUCT_LAYER_LIST=" \
+    meta-alpha/meta-alpha-product \
 "
 
-# Really, conf files should be checked and not the machine name ...
-echo ${MACHINE} | egrep -q "${ARM_MACHINE}"
-if [ $? -eq 0 ]; then
-    add_layers_for_machines "${LS_LAYERS}" "${BB_LS_MACHINE}"
-fi
- 
+ALPHA_LAYER_LIST=" \
+    $ALPHA_BSP_LAYER_LIST \
+    $ALPHA_PRODUCT_LAYER_LIST \
+"
 
-if [ -d "$ALB_ROOT_DIR" ]; then
-    EULA_FILE="$ALB_ROOT_DIR/EULA"
-else
-    EULA_FILE=""
-fi
+VENDOR_PROFILE_LIST=""
+for vendor_profile_file in ${BSP_VENDOR_DIR}/*.sh; do
+    if [ -e "${vendor_profile_file}" ]; then
+        . "${vendor_profile_file}"
+    fi
+done
+
+ACTIVE_LAYER_LIST=" \
+    $BASE_LAYER_LIST \
+    $ALPHA_LAYER_LIST \
+"
+
+select_vendor_profile
+resolve_vendor_profile_defaults
+append_layers "$PROFILE_COMMON_FEATURE_LAYER_LIST"
+append_vendor_profile_layers "${SELECTED_VENDOR_PROFILE}"
+append_layers "$extra_layers"
+
+VENDOR_PROFILE_LAYER_LIST=""
+for vendor_profile in $VENDOR_PROFILE_LIST; do
+    eval "vendor_base_layers=\${VENDOR_BASE_LAYERS_${vendor_profile}}"
+    eval "vendor_feature_layers=\${VENDOR_FEATURE_LAYERS_${vendor_profile}}"
+    VENDOR_PROFILE_LAYER_LIST="$VENDOR_PROFILE_LAYER_LIST ${vendor_base_layers} ${vendor_feature_layers}"
+done
+
+USAGE_LIST=" \
+    $BASE_LAYER_LIST \
+    $ALPHA_LAYER_LIST \
+    $COMMON_FEATURE_LAYER_LIST \
+    $VENDOR_PROFILE_LAYER_LIST \
+"
 
 # check the "-h" and other not supported options
 if test $setup_error || test $setup_h; then
@@ -332,15 +238,15 @@ if [ -n "$distro_override" ]; then
 fi
 
 if [ -z "$DISTRO" ]; then
-    DISTRO="$DEFAULT_DISTRO"
+    DISTRO="$PROFILE_DEFAULT_DISTRO"
 fi
 
 # Check the machine type specified
 # Note that we intentionally do not test ${MACHINE_EXCLUSION}
 unset MACHINE_LAYER
 if [ -n "${MACHINE}" ]; then
-    for layer in $(eval echo $OE_LAYER_LIST); do
-        if [ -e ${ROOT_DIR}/${SOURCES_DIR}/${layer}/conf/machine/${MACHINE}.conf ]; then
+    for layer in $(printf '%s\n' "$ACTIVE_LAYER_LIST" | xargs); do
+        if [ -e "${ROOT_DIR}/${SOURCES_DIR}/${layer}/conf/machine/${MACHINE}.conf" ]; then
             MACHINE_LAYER="${ROOT_DIR}/${SOURCES_DIR}/${layer}"
             break
         fi
@@ -357,25 +263,24 @@ else
 fi
 
 # set default jobs and threads
-CPUS=`grep -c processor /proc/cpuinfo`
+CPUS=$(grep -c '^processor' /proc/cpuinfo)
 JOBS="$(( ${CPUS} * 3 / 2))"
 THREADS="$(( ${CPUS} * 2 ))"
 
 # check optional jobs and threads
-if echo "$setup_j" | egrep -q "^[0-9]+$"; then
+if printf '%s\n' "$setup_j" | grep -Eq '^[0-9]+$'; then
     JOBS=$setup_j
 fi
-if echo "$setup_t" | egrep -q "^[0-9]+$"; then
+if printf '%s\n' "$setup_t" | grep -Eq '^[0-9]+$'; then
     THREADS=$setup_t
 fi
 
 # set project folder location and name
 if [ -n "$setup_builddir" ]; then
-    if echo $setup_builddir |grep -q ^/;then
-        PROJECT_DIR="${setup_builddir}"
-    else
-        PROJECT_DIR="`pwd`/${setup_builddir}"
-    fi
+    case $setup_builddir in
+        /*) PROJECT_DIR="${setup_builddir}" ;;
+        *) PROJECT_DIR="$PWD/${setup_builddir}" ;;
+    esac
 else
     PROJECT_DIR=${ROOT_DIR}/build_${MACHINE}
 fi
@@ -383,33 +288,30 @@ fi
 mkdir -p $PROJECT_DIR
 
 if [ -n "$setup_download" ]; then
-    if echo $setup_download |grep -q ^/;then
-        DOWNLOADS="${setup_download}"
-    else
-        DOWNLOADS="`pwd`/${setup_download}"
-    fi
+    case $setup_download in
+        /*) DOWNLOADS="${setup_download}" ;;
+        *) DOWNLOADS="$PWD/${setup_download}" ;;
+    esac
 else
     DOWNLOADS="$ROOT_DIR/downloads"
 fi
 mkdir -p $DOWNLOADS
-DOWNLOADS=`readlink -f "$DOWNLOADS"`
+DOWNLOADS=$(readlink -f "$DOWNLOADS")
 
 if [ -n "$setup_sstate" ]; then
-    if echo $setup_sstate |grep -q ^/;then
-        CACHES="${setup_sstate}"
-    else
-        CACHES="`pwd`/${setup_sstate}"
-    fi
+    case $setup_sstate in
+        /*) CACHES="${setup_sstate}" ;;
+        *) CACHES="$PWD/${setup_sstate}" ;;
+    esac
 else
-    is_not_ubuntu_machine
-    if [ $? -eq 1 ]; then
-        CACHES="$PROJECT_DIR/sstate-cache"
-    else
+    if printf '%s\n' "${MACHINE}" | grep -Eq "${UBUNTU_MACHINE}"; then
         CACHES="$PROJECT_DIR/sstate-cache-ubuntu"
+    else
+        CACHES="$PROJECT_DIR/sstate-cache"
     fi
 fi
 mkdir -p $CACHES
-CACHES=`readlink -f "$CACHES"`
+CACHES=$(readlink -f "$CACHES")
 
 # check if project folder was created before
 if [ -e "$PROJECT_DIR/SOURCE_THIS" ]; then
@@ -441,16 +343,16 @@ sed -e "s,MACHINE ??=.*,MACHINE ??= '$MACHINE',g" \
 
 # Clean up PATH, because if it includes tokens to current directories somehow,
 # wrong binaries can be used instead of the expected ones during task execution
-export PATH="`echo $PATH | sed 's/\(:.\|:\)*:/:/g;s/^.\?://;s/:.\?$//'`"
+export PATH="$(printf '%s' "$PATH" | sed 's/\(:.\|:\)*:/:/g;s/^.?://;s/:.?$//')"
 
 # add layers
-for layer in $(eval echo $OE_LAYER_LIST); do
+for layer in $(printf '%s\n' "$ACTIVE_LAYER_LIST" | xargs); do
     append_layer=""
-    if [ -e ${ROOT_DIR}/${SOURCES_DIR}/${layer} ]; then
+    if [ -e "${ROOT_DIR}/${SOURCES_DIR}/${layer}/conf/layer.conf" ]; then
         append_layer="${ROOT_DIR}/${SOURCES_DIR}/${layer}"
     fi
     if [ -n "${append_layer}" ]; then
-        append_layer=`readlink -f $append_layer`
+        append_layer=$(readlink -f "$append_layer")
         awk '/  "/ && !x {print "'"  ${append_layer}"' \\"; x=1} 1' \
             conf/bblayers.conf > conf/bblayers.conf~
         mv conf/bblayers.conf~ conf/bblayers.conf
@@ -458,8 +360,7 @@ for layer in $(eval echo $OE_LAYER_LIST); do
         # check if layer is compatible with supported yocto version.
         # if not, make it so.
         conffile_path="${append_layer}/conf/layer.conf"
-        yocto_compatible=`grep "LAYERSERIES_COMPAT" "${conffile_path}" | grep "${YOCTO_VERSION}"`
-        if [ -z "${yocto_compatible}" ]; then
+        if ! grep "LAYERSERIES_COMPAT" "${conffile_path}" | grep -q "${YOCTO_VERSION}"; then
 		    sed -E "/LAYERSERIES_COMPAT/s/(\".*)\"/\1 $YOCTO_VERSION\"/g" -i "${conffile_path}"
 		    echo Layer ${layer} updated for ${YOCTO_VERSION}.
 		fi
@@ -489,17 +390,9 @@ if test $setup_l; then
     echo >> conf/local.conf
 fi
 
-if echo "$MACHINE" |egrep -q "^(b4|p5|t1|t2|t4)"; then
+if printf '%s\n' "$MACHINE" | grep -Eq '^(b4|p5|t1|t2|t4)'; then
     # disable prelink (for multilib scenario) for now
     sed -i s/image-mklibs.image-prelink/image-mklibs/g conf/local.conf
-fi
-
-if [ -n "$EULA" ]; then
-    if grep -q '^ACCEPT_FSL_EULA\s*=' conf/local.conf; then
-        sed -i "s/^#*ACCEPT_FSL_EULA\s*=.*/ACCEPT_FSL_EULA = \"$EULA\"/g" conf/local.conf
-    else
-        echo "ACCEPT_FSL_EULA = \"$EULA\"" >> conf/local.conf
-    fi
 fi
 
 # make a SOURCE_THIS file

@@ -43,3 +43,6 @@
 *.swo
 *~
 .DS_Store
+
+**/build_*
+**/.vscode-ctags
