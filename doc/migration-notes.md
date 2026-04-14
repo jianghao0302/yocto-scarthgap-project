@@ -2,27 +2,46 @@
 
 ## 2026-04-14
 
-### BSP setup and layer policy
+### Background
 
-- `bsp-setup.sh` is now the single entrypoint for environment bootstrap, invoked as:
-  - `source bsp-setup.sh -m imx6ull14x14alpha`
-- Default layer selection was reduced to a minimal development set to support iterative bring-up.
-  - `poky` core layers are still initialized by `oe-init-build-env`.
-  - Script-managed defaults now focus on `meta-openembedded` core layers and `meta-alpha` layers.
-- Layer configuration in `bsp-setup.sh` was refactored into grouped variables for readability and future expansion:
-  - `OE_LAYER_LIST`
-  - `ALPHA_LAYER_LIST`
-  - Optional placeholders: `ARM_LAYER_LIST`, `UI_LAYER_LIST`, `SECURITY_LAYER_LIST`
-  - Final aggregation: `LAYER_LIST`
-- NXP layer paths are explicitly excluded when appending extra layers via `-e`.
+- Goal: migrate to a self-owned `meta-alpha` workflow and reduce coupling with vendor layers.
 
-### Input validation hardening
+### Scope and objectives
 
-- `bsp-setup.sh` now validates:
+- Use `bsp-setup.sh` as the single bootstrap entry.
+- Keep default layer set minimal for incremental bring-up.
+- Improve script readability by grouping layer lists.
+- Improve script robustness with argument validation.
+
+### Changes implemented
+
+- Bootstrap entry:
+  - Use `source bsp-setup.sh -m imx6ull14x14alpha`.
+- Layer policy:
+  - `poky` core remains initialized by `oe-init-build-env`.
+  - Script-managed default focuses on `meta-openembedded` core layers and `meta-alpha` layers.
+  - Extra layers under `sources/nxp` are explicitly skipped when passed via `-e`.
+- Layer-list structure:
+  - Introduced grouped variables: `OE_LAYER_LIST`, `ALPHA_LAYER_LIST`.
+  - Reserved optional groups: `ARM_LAYER_LIST`, `UI_LAYER_LIST`, `SECURITY_LAYER_LIST`.
+  - Aggregated through `LAYER_LIST`.
+- Validation hardening:
   - `-j` and `-t` must be positive integers.
-  - `MACHINE` and `DISTRO` names must only include `[A-Za-z0-9._-]`.
+  - `MACHINE` and `DISTRO` tokens accept `[A-Za-z0-9._-]` only.
 
-### Verification status
+### Verification
 
-- Sourcing script with `-m imx6ull14x14alpha` completes successfully and enters the build directory.
-- Negative-path checks (invalid `-j/-t`, invalid machine token) return expected error codes and messages.
+- Positive path:
+  - Sourcing with `-m imx6ull14x14alpha` succeeds and enters build directory.
+- Negative path:
+  - Invalid `-j/-t` values return expected error code and message.
+  - Invalid machine token returns expected error code and message.
+
+### Risks and follow-ups
+
+- Existing old build directories may still contain previously added layers.
+- If new feature requirements appear, optional groups can be enabled incrementally.
+
+### Rollback
+
+- Revert related commits that touched `bsp-setup.sh`, `doc/meta-layer-inventory.md`, and this file.
