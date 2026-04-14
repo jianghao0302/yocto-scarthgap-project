@@ -1,5 +1,19 @@
 # Yocto Migration Notes
 
+## Record Guidelines
+
+- Add new entries in reverse chronological order (newest first).
+- Use a date header in `YYYY-MM-DD` format.
+- Keep each entry in this fixed structure:
+  - `Background`
+  - `Scope and objectives`
+  - `Changes implemented`
+  - `Verification`
+  - `Risks and follow-ups`
+  - `Rollback`
+- In `Verification`, include at least one positive-path and one negative-path or edge-case result when applicable.
+- In `Rollback`, explicitly list files or commits to revert.
+
 ## 2026-04-14
 
 ### Background
