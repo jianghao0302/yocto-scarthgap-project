@@ -46,3 +46,8 @@
 
 **/build_*
 **/.vscode-ctags
+
+# cscope generated indexes
+cscope.out
+cscope.out.in
+cscope.out.po
