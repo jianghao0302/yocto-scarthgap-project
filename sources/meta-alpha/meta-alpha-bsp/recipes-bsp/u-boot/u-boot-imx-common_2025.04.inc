@@ -17,14 +17,11 @@ DEPENDS += " \
     dtc-native \
     flex-native \
     gnutls-native \
-    efitools-native \
     python3-setuptools-native \
     xxd-native \
 "
 
 S = "${WORKDIR}/git"
 B = "${WORKDIR}/build"
-
-inherit fsl-u-boot-localversion
 
 BOOT_TOOLS = "imx-boot-tools"

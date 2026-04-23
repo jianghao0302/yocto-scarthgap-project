@@ -19,3 +19,11 @@ PREFERRED_VERSION_linux-imx = "6.12%"
 SERIAL_CONSOLES = "115200;ttymxc0"
 
 SOC_DEFAULT_WKS_FILE                 ?= "imx-uboot-bootpart.wks.in"
+
+# WIC default support
+WIC_CREATE_EXTRA_ARGS ?= "--no-fstab-update"
+WKS_FILE_DEPENDS ?= " \
+	virtual/bootloader \
+	e2fsprogs-native \
+	bmaptool-native \
+"

@@ -5,3 +5,7 @@ LICENSE = "MIT"
 require recipes-core/images/core-image-base.bb
 
 IMAGE_FEATURES += "ssh-server-dropbear"
+
+IMAGE_FEATURES += "package-management"
+
+IMAGE_INSTALL:append = " packagegroup-alpha-base"

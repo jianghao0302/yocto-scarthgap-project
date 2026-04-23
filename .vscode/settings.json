@@ -8,13 +8,16 @@
         "${workspaceFolder}/sources/poky/meta/lib"
     ],
     "files.associations": {
+        "*.yrf": "json",
+        "*.rpx": "xml",
+        "*.stl": "json",
         "*.conf": "bitbake",
         "*.inc": "bitbake"
     },
     "files.exclude": {
         "**/build": true,
         "**/build-*": true,
-        "**/build_*": true,
+        "**/build_*": false,
         "**/downloads": true,
         "**/downloads-*": true,
         "**/sstate-cache": true,
